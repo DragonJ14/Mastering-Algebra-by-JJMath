@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Algebra Mastery by JJMath</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',sans-serif;background:#f1f5f9;min-height:100vh}
+  input{outline:none}
+  button{cursor:pointer}
+  ::-webkit-scrollbar{width:6px}
+  ::-webkit-scrollbar-track{background:#f1f5f9}
+  ::-webkit-scrollbar-thumb{background:#c7d2fe;border-radius:3px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback}=React;
+
+const modules=[
+  {id:1,title:"Simplifying Algebra",icon:"➕"},
+  {id:2,title:"Algebraic Identities",icon:"🔷"},
+  {id:3,title:"Solving for x",icon:"🔍"},
+  {id:4,title:"Making the Subject",icon:"🔄"},
+  {id:5,title:"Factorisation",icon:"✂️"},
+  {id:6,title:"Algebraic Fractions",icon:"➗"},
+  {id:7,title:"Word Problems",icon:"📝"},
+];
+
+function Frac({n,d}){
+  return <span style={{display:"inline-flex",flexDirection:"column",alignItems:"center",verticalAlign:"middle",margin:"0 3px"}}>
+    <span style={{borderBottom:"1.5px solid currentColor",paddingBottom:1,lineHeight:1.3,fontSize:"0.95em"}}>{n}</span>
+    <span style={{paddingTop:1,lineHeight:1.3,fontSize:"0.95em"}}>{d}</span>
+  </span>;
+}
+
+function toSpeakable(s){
+  if(typeof s!=="string")return"";
+  return s.trim()
+    .replace(/❌/g,"Warning:").replace(/✓/g,", correct").replace(/Step (\d)/g,"Step $1:")
+    .replace(/−/g," minus ").replace(/\+/g," plus ").replace(/×/g," times ").replace(/÷/g," divided by ")
+    .replace(/=/g," equals ").replace(/x²/g,"x squared").replace(/a²/g,"a squared")
+    .replace(/b²/g,"b squared").replace(/x³/g,"x cubed").replace(/√/g,"square root of ")
+    .replace(/π/g,"pi").replace(/\s+/g," ").trim();
+}
+
+function AnimatedWorkings({steps,problem,problemText}){
+  const [shown,setShown]=useState(0);
+  const [running,setRunning]=useState(false);
+  const [voiceOn,setVoiceOn]=useState(true);
+  const [voices,setVoices]=useState([]);
+  const timerRef=useRef(null);
+  const shownRef=useRef(0);
+  useEffect(()=>{const load=()=>setVoices(window.speechSynthesis.getVoices());load();window.speechSynthesis.onvoiceschanged=load;},[]);
+  const speak=useCallback((text,onEnd)=>{
+    if(!voiceOn||!text){onEnd&&onEnd();return;}
+    window.speechSynthesis.cancel();
+    const utt=new SpeechSynthesisUtterance(text);
+    utt.rate=0.92;utt.pitch=1.05;
+    const pref=voices.find(v=>v.lang.startsWith("en")&&v.name.toLowerCase().includes("female"))||voices.find(v=>v.lang.startsWith("en-GB"))||voices.find(v=>v.lang.startsWith("en"));
+    if(pref)utt.voice=pref;
+    if(onEnd)utt.onend=onEnd;
+    window.speechSynthesis.speak(utt);
+  },[voiceOn,voices]);
+  const reset=useCallback(()=>{clearTimeout(timerRef.current);window.speechSynthesis.cancel();setShown(0);shownRef.current=0;setRunning(false);},[]);
+  const playFrom=useCallback((idx)=>{
+    if(idx>=steps.length){setRunning(false);return;}
+    shownRef.current=idx+1;setShown(idx+1);
+    const text=toSpeakable(steps[idx]);
+    speak(text,()=>{timerRef.current=setTimeout(()=>playFrom(shownRef.current),300);});
+    if(!text)timerRef.current=setTimeout(()=>playFrom(idx+1),900);
+  },[steps,speak]);
+  const play=useCallback(()=>{
+    if(shownRef.current>=steps.length){reset();setTimeout(()=>{setRunning(true);playFrom(0);},100);return;}
+    setRunning(true);
+    if(shownRef.current===0&&problemText)speak("Let's solve: "+problemText,()=>{timerRef.current=setTimeout(()=>playFrom(0),200);});
+    else playFrom(shownRef.current);
+  },[steps,reset,speak,playFrom,problemText]);
+  useEffect(()=>()=>{clearTimeout(timerRef.current);window.speechSynthesis.cancel();},[]);
+  useEffect(()=>{reset();},[steps]);
+  const cols=["#1d4ed8","#0369a1","#0f766e","#15803d","#7c3aed","#b45309","#be185d","#1d4ed8","#0369a1","#0f766e"];
+  return <div style={{background:"linear-gradient(135deg,#1e1b4b,#312e81)",borderRadius:12,padding:16,marginTop:10}}>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,flexWrap:"wrap",gap:6}}>
+      <span style={{color:"#a5b4fc",fontSize:12,fontWeight:700,letterSpacing:1,textTransform:"uppercase"}}>▶ Animated Workings</span>
+      <div style={{display:"flex",gap:6,alignItems:"center"}}>
+        <button onClick={()=>{setVoiceOn(v=>!v);window.speechSynthesis.cancel();}}
+          style={{padding:"4px 10px",background:voiceOn?"rgba(99,102,241,0.5)":"rgba(255,255,255,0.1)",border:`1px solid ${voiceOn?"#818cf8":"rgba(255,255,255,0.2)"}`,borderRadius:6,color:voiceOn?"#c7d2fe":"#9ca3af",fontSize:12}}>
+          {voiceOn?"🔊 Voice On":"🔇 Voice Off"}</button>
+        <button onClick={reset} style={{padding:"4px 10px",background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:6,color:"#e0e7ff",fontSize:12}}>↺ Reset</button>
+        <button onClick={play} disabled={running}
+          style={{padding:"4px 12px",background:running?"rgba(99,102,241,0.4)":"#6366f1",border:"none",borderRadius:6,color:"#fff",fontSize:12,fontWeight:700}}>
+          {shown>=steps.length?"▶ Replay":running?"🔊 Playing…":shown===0?"▶ Play":"▶ Continue"}</button>
+      </div>
+    </div>
+    <div style={{background:"rgba(255,255,255,0.08)",borderRadius:8,padding:"8px 12px",marginBottom:10,color:"#f0f9ff",fontWeight:700,fontSize:15,display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>{problem}</div>
+    <div style={{minHeight:80}}>
+      {steps.slice(0,shown).map((s,i)=><AnimStep key={i} s={s} color={cols[i%cols.length]}/>)}
+      {shown===0&&<div style={{color:"rgba(255,255,255,0.3)",fontSize:13,textAlign:"center",paddingTop:20}}>Press ▶ Play to start{voiceOn?" with voice":""}</div>}
+    </div>
+    <div style={{display:"flex",gap:5,marginTop:10,justifyContent:"center"}}>
+      {steps.map((_,i)=><div key={i} style={{width:7,height:7,borderRadius:"50%",background:i<shown?"#818cf8":"rgba(255,255,255,0.15)",transition:"background 0.3s"}}/>)}
+    </div>
+  </div>;
+}
+
+function AnimStep({s,color}){
+  const [visible,setVisible]=useState(false);
+  useEffect(()=>{const t=setTimeout(()=>setVisible(true),30);return()=>clearTimeout(t);},[]);
+  const isW=typeof s==="string"&&s.startsWith("❌");
+  const isS=typeof s==="string"&&s.startsWith("Step");
+  const isI=typeof s==="string"&&s.startsWith("  ");
+  return <div style={{opacity:visible?1:0,transform:visible?"translateX(0)":"translateX(-18px)",transition:"opacity 0.45s ease,transform 0.45s ease",
+    background:isW?"rgba(239,68,68,0.15)":isS?"rgba(99,102,241,0.2)":"rgba(255,255,255,0.06)",
+    borderLeft:`3px solid ${isW?"#ef4444":isS?"#818cf8":color}`,
+    borderRadius:"0 6px 6px 0",padding:"6px 10px",marginBottom:5,paddingLeft:isI?22:10,
+    color:isW?"#fca5a5":isS?"#a5b4fc":"#e0f2fe",fontWeight:isS?700:400,fontSize:13,
+    display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
+    {typeof s==="string"?s.trim():s}
+  </div>;
+}
+
+function StepBox({steps}){
+  return <div style={{background:"#f0f9ff",border:"1px solid #bae6fd",borderRadius:8,padding:"10px 14px",marginTop:8}}>
+    {steps.map((s,i)=>{
+      if(typeof s!=="string")return <div key={i} style={{padding:"4px 0",fontSize:14,display:"flex",alignItems:"center",flexWrap:"wrap",gap:2}}>{s}</div>;
+      const isW=s.startsWith("❌"),isS=s.startsWith("Step"),isI=s.startsWith("  ");
+      return <div key={i} style={{padding:"4px 0",fontSize:14,color:isW?"#dc2626":isS?"#1d4ed8":"#1e3a5f",fontWeight:isS?600:400,paddingLeft:isI?16:0}}>{s.trim()}</div>;
+    })}
+  </div>;
+}
+
+const wordProblems={
+  easy:[
+    {topic:"Simplifying / Solving",scenario:"🍎 Fruit Stall",problem:"A fruit stall sells apples for $x each. Sarah buys 3 apples and James buys 5 apples. Write an expression for the total number of apples bought, then find the total cost if x = 2.",
+      steps:["Step 1 — Total apples: 3 + 5 = 8","Step 2 — Total cost expression: 8 × x = 8x dollars","Step 3 — Substitute x = 2: 8 × 2 = $16","Answer: The total cost is $16."],answer:"$16",hint:"Add the apples first, then multiply by the price x."},
+    {topic:"Solving for x",scenario:"🚌 Bus Ride",problem:"A school bus has some students on it. At the first stop, 7 more students board. Now there are 23 students. How many students were on the bus originally?",
+      steps:["Step 1 — Let x = number of students originally","Step 2 — Form equation: x + 7 = 23","Step 3 — Subtract 7: x = 23 − 7 = 16","Answer: There were 16 students originally."],answer:"16 students",hint:"Let x be the original number. Write an equation then solve."},
+    {topic:"Simplifying",scenario:"📦 Packing Boxes",problem:"Each box holds x books. Tom packs 4 boxes and Jane packs 3 boxes. Write and simplify an expression for the total number of books packed.",
+      steps:["Step 1 — Tom packs: 4x books","Step 2 — Jane packs: 3x books","Step 3 — Total = 4x + 3x","Step 4 — Simplify: 7x","Answer: Total books = 7x"],answer:"7x",hint:"Write each person's books as a term, then add like terms."},
+    {topic:"Solving for x",scenario:"🎂 Birthday Cake",problem:"A birthday cake is cut into equal slices. After eating 4 slices, there are 8 slices left. How many slices were there originally?",
+      steps:["Step 1 — Let x = total slices","Step 2 — Equation: x − 4 = 8","Step 3 — Add 4: x = 12","Answer: The cake had 12 slices."],answer:"12 slices",hint:"Slices eaten + slices left = total slices."},
+  ],
+  medium:[
+    {topic:"Forming & Solving",scenario:"🏃 Running Track",problem:"Two runners, Ali and Ben, run at (2x + 3) km/h and (x + 7) km/h. If they run at the same speed, find x.",
+      steps:["Step 1 — Set equal: 2x + 3 = x + 7","Step 2 — Subtract x: x + 3 = 7","Step 3 — Subtract 3: x = 4","Check: Ali = 11, Ben = 11 ✓","Answer: x = 4"],answer:"x = 4",hint:"Set the two expressions equal and solve."},
+    {topic:"Expanding / Identities",scenario:"🏡 Garden Area",problem:"A square garden has side length (x + 5) metres. Write an expanded expression for its area.",
+      steps:["Step 1 — Area = (x + 5)²","Step 2 — Use (a+b)² = a² + 2ab + b²","Step 3 — = x² + 2(x)(5) + 5²","= x² + 10x + 25","Answer: Area = x² + 10x + 25 m²"],answer:"x² + 10x + 25",hint:"Area of a square = side². Use the (a+b)² identity."},
+    {topic:"Factorisation",scenario:"🎟️ Concert Tickets",problem:"Revenue R = x² + 8x + 15. Factorise R.",
+      steps:["Step 1 — Factorise x² + 8x + 15","Step 2 — Find: × = 15, + = 8 → 3 and 5","Step 3 — R = (x + 3)(x + 5)","Answer: R = (x + 3)(x + 5)"],answer:"(x + 3)(x + 5)",hint:"Find two numbers that multiply to 15 and add to 8."},
+    {topic:"Making the Subject",scenario:"🌡️ Temperature",problem:"F = (9/5)C + 32. Make C the subject.",
+      steps:["Step 1 — Subtract 32: F − 32 = (9/5)C","Step 2 — Multiply by 5: 5(F−32) = 9C","Step 3 — Divide by 9: C = 5(F−32)/9","Answer: C = 5(F−32)/9"],answer:"C = 5(F−32)/9",hint:"Undo the +32 first, then clear the fraction 9/5."},
+    {topic:"Solving for x",scenario:"🛍️ Shopping",problem:"A jacket costs $3x. After a $15 discount, Maya pays $60. Find the original price.",
+      steps:["Step 1 — Equation: 3x − 15 = 60","Step 2 — Add 15: 3x = 75","Step 3 — Divide by 3: x = 25","Step 4 — Original price = 3 × 25 = $75","Answer: $75"],answer:"$75",hint:"Form: 3x − 15 = 60, then solve for x."},
+  ],
+  hard:[
+    {topic:"Algebraic Fractions",scenario:"🚰 Water Tanks",problem:"Tank A fills in x hours, Tank B in (x+2) hours. Write 1/x + 1/(x+2) as a single simplified fraction.",
+      steps:["Step 1 — LCD = x(x+2)","Step 2 — Rewrite with LCD","Step 3 — Combine numerators: (x+2)+x = 2x+2","Step 4 — Factorise: 2(x+1)","Answer: 2(x+1) / [x(x+2)]"],answer:"2(x+1)/[x(x+2)]",hint:"LCD = x(x+2), then add and simplify."},
+    {topic:"Forming & Solving",scenario:"🔢 Consecutive Integers",problem:"The product of two consecutive even integers is 168. Find them.",
+      steps:["Step 1 — Let integers be x and x+2","Step 2 — x(x+2) = 168","Step 3 — Expand: x² + 2x − 168 = 0","Step 4 — Factorise: (x+14)(x−12) = 0","Step 5 — x = 12 (positive even)","Answer: 12 and 14"],answer:"12 and 14",hint:"Let integers be x and x+2. Form and solve quadratic."},
+    {topic:"Factorisation + Fractions",scenario:"🧪 Science",problem:"Simplify: (x²+3x)/(x²−9) × (x−3)/x",
+      steps:["Step 1 — Factorise: x²+3x = x(x+3), x²−9 = (x+3)(x−3)","Step 2 — Rewrite and cancel","  x cancels ✓  (x+3) cancels ✓  (x−3) cancels ✓","Answer: 1"],answer:"1",hint:"Factorise all expressions first, then cancel."},
+    {topic:"Making the Subject",scenario:"🚀 Kinematics",problem:"v² = u² + 2as. Make a the subject, then find a when v=10, u=4, s=7.",
+      steps:["Step 1 — Subtract u²: v²−u² = 2as","Step 2 — Divide by 2s: a = (v²−u²)/(2s)","Step 3 — Substitute: a = (100−16)/14 = 84/14 = 6","Answer: a = 6 m/s²"],answer:"a = 6",hint:"Subtract u² first, then divide both sides by 2s."},
+    {topic:"Identities",scenario:"🎯 Number Trick",problem:"Prove that (n+1)² − n² is always odd.",
+      steps:["Step 1 — Expand: (n+1)² − n²","Step 2 — Use a²−b² = (a+b)(a−b)","  = [(n+1)+n][(n+1)−n]","  = [2n+1][1] = 2n+1","Step 3 — 2n is even, so 2n+1 is always odd ✓","Answer: Always 2n+1 — always odd."],answer:"2n + 1 (always odd)",hint:"Use a²−b²=(a+b)(a−b) with a=n+1, b=n."},
+  ],
+};
+
+function WordProblemsModule(){
+  const [diff,setDiff]=useState("easy");
+  const [sel,setSel]=useState(0);
+  const [revealed,setRevealed]=useState({});
+  const [hints,setHints]=useState({});
+  const [answers,setAnswers]=useState({});
+  const [checked,setChecked]=useState({});
+  const problems=wordProblems[diff];
+  const prob=problems[sel];
+  const key=`${diff}-${sel}`;
+  const norm=s=>s.replace(/\s/g,"").toLowerCase();
+  const dCol={easy:"#16a34a",medium:"#d97706",hard:"#dc2626"};
+  const dBg={easy:"#dcfce7",medium:"#fef3c7",hard:"#fee2e2"};
+  return <div>
+    <div style={{display:"flex",gap:8,marginBottom:18,flexWrap:"wrap"}}>
+      {["easy","medium","hard"].map(d=>(
+        <button key={d} onClick={()=>{setDiff(d);setSel(0);}}
+          style={{padding:"7px 20px",borderRadius:20,border:"none",fontWeight:700,fontSize:13,background:diff===d?dCol[d]:"#e5e7eb",color:diff===d?"#fff":"#374151"}}>
+          {d==="easy"?"🟢 Easy":d==="medium"?"🟡 Medium":"🔴 Hard"}</button>
+      ))}
+    </div>
+    <div style={{display:"flex",gap:8,marginBottom:18,flexWrap:"wrap"}}>
+      {problems.map((p,i)=>(
+        <button key={i} onClick={()=>setSel(i)}
+          style={{padding:"5px 12px",borderRadius:8,border:"none",fontSize:12,fontWeight:600,background:sel===i?"#6366f1":"#e0e7ff",color:sel===i?"#fff":"#4338ca"}}>
+          Q{i+1}: {p.scenario}</button>
+      ))}
+    </div>
+    <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:12,padding:18,marginBottom:16}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+        <span style={{background:dBg[diff],color:dCol[diff],fontSize:11,fontWeight:800,padding:"3px 10px",borderRadius:20,textTransform:"uppercase"}}>{diff}</span>
+        <span style={{background:"#ede9fe",color:"#6d28d9",fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:20}}>{prob.topic}</span>
+        <span style={{fontSize:18}}>{prob.scenario}</span>
+      </div>
+      <div style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:8,padding:"12px 14px",fontSize:15,color:"#1e3a5f",lineHeight:1.7,marginBottom:14}}>{prob.problem}</div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginBottom:10}}>
+        <input placeholder="Your answer…" value={answers[key]||""}
+          onChange={e=>{setAnswers(a=>({...a,[key]:e.target.value}));setChecked(c=>{const n={...c};delete n[key];return n;});}}
+          style={{flex:1,minWidth:160,padding:"7px 10px",borderRadius:8,border:"1px solid #d1d5db",fontSize:14}}/>
+        <button onClick={()=>setChecked(c=>({...c,[key]:norm(answers[key]||"")===norm(prob.answer)}))}
+          style={{padding:"7px 14px",background:"#6366f1",color:"#fff",border:"none",borderRadius:8,fontWeight:600,fontSize:13}}>Check</button>
+        <button onClick={()=>setHints(h=>({...h,[key]:true}))}
+          style={{padding:"7px 14px",background:"#fbbf24",color:"#fff",border:"none",borderRadius:8,fontSize:13}}>💡 Hint</button>
+        <button onClick={()=>setRevealed(r=>({...r,[key]:true}))}
+          style={{padding:"7px 14px",background:"#e5e7eb",color:"#374151",border:"none",borderRadius:8,fontSize:13}}>Show Answer</button>
+      </div>
+      {checked[key]===true&&<div style={{color:"#16a34a",fontWeight:700,marginBottom:8}}>✅ Correct! Well done!</div>}
+      {checked[key]===false&&<div style={{color:"#dc2626",fontWeight:700,marginBottom:8}}>❌ Not quite — check your working!</div>}
+      {hints[key]&&<div style={{background:"#fef3c7",borderRadius:6,padding:"8px 12px",fontSize:13,color:"#92400e",marginBottom:8}}>💡 {prob.hint}</div>}
+      {revealed[key]&&<div style={{background:"#dcfce7",borderRadius:6,padding:"8px 12px",fontSize:13,color:"#166534",fontWeight:700,marginBottom:8}}>Answer: {prob.answer}</div>}
+      <div style={{fontSize:12,fontWeight:700,color:"#9ca3af",textTransform:"uppercase",letterSpacing:0.8,marginTop:14,marginBottom:4}}>Full Workings</div>
+      <StepBox steps={prob.steps}/>
+      <AnimatedWorkings steps={prob.steps} problem={prob.problem} problemText={prob.problem} key={key}/>
+    </div>
+  </div>;
+}
+
+const mc={
+  1:{subtopics:["Adding & Subtracting","Multiplying","Dividing"],
+    lessons:[
+      {title:"Adding & Subtracting Like Terms",explanation:"Only like terms (same variable and power) can be added or subtracted.",
+        examples:[
+          {problem:"3x + 5x",problemText:"3x plus 5x",steps:["Both terms have x","Add coefficients: 3 + 5 = 8","Answer: 8x"]},
+          {problem:"7a² − 3a² + 2a",problemText:"7a squared minus 3a squared plus 2a",steps:["7a² and 3a² are like terms","7a² − 3a² = 4a²","2a stays as is","Answer: 4a² + 2a"]},
+        ]},
+      {title:"Multiplying Algebra",explanation:"Multiply coefficients, then apply index laws: xᵃ × xᵇ = xᵃ⁺ᵇ",
+        examples:[
+          {problem:"3x × 4x²",problemText:"3x times 4x squared",steps:["Multiply coefficients: 3 × 4 = 12","Multiply variables: x × x² = x³","Answer: 12x³"]},
+          {problem:"2a × 3b × a",problemText:"2a times 3b times a",steps:["Coefficients: 2 × 3 = 6","Variables: a × b × a = a²b","Answer: 6a²b"]},
+        ]},
+      {title:"Dividing Algebra",explanation:"Divide coefficients, then apply index laws: xᵃ ÷ xᵇ = xᵃ⁻ᵇ",
+        examples:[
+          {problem:"12x³ ÷ 4x",problemText:"12x cubed divided by 4x",steps:["Coefficients: 12 ÷ 4 = 3","Variables: x³ ÷ x = x²","Answer: 3x²"]},
+          {problem:"15a²b ÷ 5ab",problemText:"15a squared b divided by 5ab",steps:["Coefficients: 15 ÷ 5 = 3","a²÷a=a, b÷b=1","Answer: 3a"]},
+        ]},
+    ],
+    questions:[
+      {q:"Simplify: 4x + 7x − 2x",a:"9x",hint:"Combine all x terms"},
+      {q:"Simplify: 5a² + 3a − 2a²",a:"3a² + 3a",hint:"Group like terms"},
+      {q:"Simplify: 2x × 5x³",a:"10x⁴",hint:"Multiply coefficients, add powers"},
+      {q:"Simplify: 18y⁴ ÷ 6y²",a:"3y²",hint:"Divide coefficients, subtract powers"},
+    ]},
+  2:{subtopics:["Square of Sum","Square of Difference","Difference of Squares"],
+    lessons:[
+      {title:"(a+b)² — Square of a Sum",explanation:"(a+b)² = a² + 2ab + b². Never write just a² + b²!",
+        examples:[
+          {problem:"(x+3)²",problemText:"bracket x plus 3 bracket squared",steps:["(a+b)²=a²+2ab+b²","a=x, b=3","=x²+2(x)(3)+9","=x²+6x+9"]},
+          {problem:"(2x+5)²",problemText:"bracket 2x plus 5 bracket squared",steps:["a=2x, b=5","=(2x)²+2(2x)(5)+25","=4x²+20x+25"]},
+        ]},
+      {title:"(a−b)² — Square of a Difference",explanation:"(a−b)² = a² − 2ab + b². Middle term is negative.",
+        examples:[
+          {problem:"(x−4)²",problemText:"bracket x minus 4 bracket squared",steps:["(a−b)²=a²−2ab+b²","a=x, b=4","=x²−8x+16"]},
+          {problem:"(3x−2)²",problemText:"bracket 3x minus 2 bracket squared",steps:["a=3x, b=2","=9x²−12x+4"]},
+        ]},
+      {title:"(a+b)(a−b) — Difference of Two Squares",explanation:"(a+b)(a−b) = a² − b². Middle terms cancel.",
+        examples:[
+          {problem:"(x+5)(x−5)",problemText:"bracket x plus 5 bracket times bracket x minus 5 bracket",steps:["(a+b)(a−b)=a²−b²","a=x, b=5","=x²−25"]},
+          {problem:"(3x+2)(3x−2)",problemText:"bracket 3x plus 2 bracket times bracket 3x minus 2 bracket",steps:["a=3x, b=2","=(3x)²−4","=9x²−4"]},
+        ]},
+    ],
+    questions:[
+      {q:"Expand: (x+6)²",a:"x² + 12x + 36",hint:"(a+b)²=a²+2ab+b²"},
+      {q:"Expand: (x−5)²",a:"x² − 10x + 25",hint:"(a−b)²=a²−2ab+b²"},
+      {q:"Expand: (x+7)(x−7)",a:"x² − 49",hint:"(a+b)(a−b)=a²−b²"},
+      {q:"Expand: (2x+3)²",a:"4x² + 12x + 9",hint:"a=2x, b=3"},
+    ]},
+  3:{subtopics:["One-step","Two-step","Multi-step"],
+    lessons:[
+      {title:"One-Step Equations",explanation:"Do the same operation to both sides to isolate x.",
+        examples:[
+          {problem:"x+7=12",problemText:"x plus 7 equals 12",steps:["Subtract 7 from both sides","x=12−7=5"]},
+          {problem:"3x=18",problemText:"3x equals 18",steps:["Divide both sides by 3","x=6"]},
+        ]},
+      {title:"Two-Step Equations",explanation:"Undo addition/subtraction first, then multiplication/division.",
+        examples:[
+          {problem:"2x+5=13",problemText:"2x plus 5 equals 13",steps:["Subtract 5: 2x=8","Divide by 2: x=4"]},
+        ]},
+      {title:"Multi-Step Equations",explanation:"Expand brackets, collect like terms, then solve.",
+        examples:[
+          {problem:"3(x+2)=2x+10",problemText:"3 times bracket x plus 2 bracket equals 2x plus 10",steps:["Expand: 3x+6=2x+10","Subtract 2x: x+6=10","Subtract 6: x=4"]},
+        ]},
+    ],
+    questions:[
+      {q:"Solve: x−9=4",a:"x = 13",hint:"Add 9 to both sides"},
+      {q:"Solve: 5x=35",a:"x = 7",hint:"Divide by 5"},
+      {q:"Solve: 4x−3=17",a:"x = 5",hint:"Add 3 first, then divide"},
+      {q:"Solve: 2(x+4)=18",a:"x = 5",hint:"Expand brackets first"},
+    ]},
+  4:{subtopics:["Linear formulas","With fractions","Subject appears twice"],
+    lessons:[
+      {title:"Making the Subject — Basics",explanation:"Rearrange so the required variable is alone on one side.",
+        examples:[
+          {problem:"Make x: y=3x+2",problemText:"Make x the subject of y equals 3x plus 2",
+            steps:["Subtract 2: y−2=3x","Divide by 3:",<span key="f1" style={{display:"flex",alignItems:"center",gap:6}}>x=<Frac n="y−2" d="3"/></span>]},
+          {problem:"Make r: A=πr²",problemText:"Make r the subject of A equals pi r squared",
+            steps:["Divide by π:",<span key="f2" style={{display:"flex",alignItems:"center",gap:6}}><Frac n="A" d="π"/>=r²</span>,"Square root:",<span key="f3" style={{display:"flex",alignItems:"center",gap:6}}>r=√<Frac n="A" d="π"/></span>]},
+        ]},
+      {title:"With Fractions",explanation:"Multiply both sides by the denominator first.",
+        examples:[
+          {problem:"Make x: y=(x+3)/5",problemText:"Make x the subject of y equals x plus 3 over 5",
+            steps:[<span key="f0">Start: y=<Frac n="x+3" d="5"/></span>,"Multiply by 5: 5y=x+3","Subtract 3: x=5y−3"]},
+        ]},
+      {title:"Subject Appears Twice",explanation:"Collect subject terms, factorise, then divide.",
+        examples:[
+          {problem:"Make x: ax+b=cx+d",problemText:"Make x the subject of ax plus b equals cx plus d",
+            steps:["Collect x: ax−cx=d−b","Factorise: x(a−c)=d−b","Divide:",<span key="f1" style={{display:"flex",alignItems:"center",gap:6}}>x=<Frac n="d−b" d="a−c"/></span>]},
+        ]},
+    ],
+    questions:[
+      {q:"Make x: y=4x−1",a:"x = (y+1)/4",hint:"Add 1, then divide by 4"},
+      {q:"Make t: v=u+at",a:"t = (v−u)/a",hint:"Subtract u, divide by a"},
+      {q:"Make r: V=(4/3)πr³",a:"r = ∛(3V/4π)",hint:"Isolate r³, then cube root"},
+      {q:"Make x: y=(2x+1)/3",a:"x = (3y−1)/2",hint:"Multiply by 3 first"},
+    ]},
+  5:{subtopics:["Common Factors","Quadratic","Grouping","Reverse Square"],
+    lessons:[
+      {title:"Taking Out Common Factors",explanation:"Find the HCF and factor it out.",
+        examples:[
+          {problem:"6x²+9x",problemText:"Factorise 6x squared plus 9x",steps:["HCF=3x","=3x(2x+3)","Check: 3x×2x+3x×3=6x²+9x ✓"]},
+          {problem:"4a²b−8ab²",problemText:"Factorise 4a squared b minus 8ab squared",steps:["HCF=4ab","=4ab(a−2b)"]},
+        ]},
+      {title:"Quadratic Factorisation",explanation:"Find two numbers that multiply to c and add to b.",
+        examples:[
+          {problem:"x²+7x+12",problemText:"Factorise x squared plus 7x plus 12",steps:["× =12, + =7 → 3 and 4","=(x+3)(x+4)"]},
+          {problem:"x²−x−6",problemText:"Factorise x squared minus x minus 6",steps:["× =−6, + =−1 → −3 and 2","=(x−3)(x+2)"]},
+        ]},
+      {title:"Factorisation by Grouping",explanation:"Group in pairs, factor each, take common bracket.",
+        examples:[
+          {problem:"ax+ay+bx+by",problemText:"Factorise ax plus ay plus bx plus by",steps:["Group: (ax+ay)+(bx+by)","=a(x+y)+b(x+y)","=(x+y)(a+b)"]},
+        ]},
+      {title:"Difference of Two Squares",explanation:"a²−b²=(a+b)(a−b)",
+        examples:[
+          {problem:"x²−16",problemText:"Factorise x squared minus 16",steps:["=x²−4²","=(x+4)(x−4)"]},
+          {problem:"9x²−25",problemText:"Factorise 9x squared minus 25",steps:["=(3x)²−5²","=(3x+5)(3x−5)"]},
+        ]},
+    ],
+    questions:[
+      {q:"Factorise: 10x²+15x",a:"5x(2x+3)",hint:"HCF is 5x"},
+      {q:"Factorise: x²+8x+15",a:"(x+3)(x+5)",hint:"×=15, +=8"},
+      {q:"Factorise: x²−9",a:"(x+3)(x−3)",hint:"Difference of two squares"},
+      {q:"Factorise: x²−3x−10",a:"(x−5)(x+2)",hint:"×=−10, +=−3"},
+      {q:"Factorise by grouping: xy+2x+3y+6",a:"(x+3)(y+2)",hint:"Group first two and last two"},
+    ]},
+  6:{subtopics:["Adding & Subtracting","Multiplying","Dividing"],
+    lessons:[
+      {title:"Adding & Subtracting Algebraic Fractions",explanation:"Find the LCD, convert fractions, then combine numerators.",
+        examples:[
+          {problem:<span style={{display:"flex",alignItems:"center",gap:6}}><Frac n="1" d="x"/>+<Frac n="2" d="3"/></span>,problemText:"1 over x plus 2 over 3",
+            steps:["LCD=3x",<span key="s1" style={{display:"flex",alignItems:"center",gap:6}}>= <Frac n="3" d="3x"/>+<Frac n="2x" d="3x"/></span>,<span key="s2" style={{display:"flex",alignItems:"center",gap:6}}>= <Frac n="3+2x" d="3x"/></span>]},
+          {problem:<span style={{display:"flex",alignItems:"center",gap:6}}><Frac n="3" d="x+1"/>−<Frac n="2" d="x−1"/></span>,problemText:"3 over x+1 minus 2 over x−1",
+            steps:["LCD=(x+1)(x−1)",<span key="s1" style={{display:"flex",alignItems:"center",gap:6}}>= <Frac n="3(x−1)" d="(x+1)(x−1)"/>−<Frac n="2(x+1)" d="(x+1)(x−1)"/></span>,<span key="s2" style={{display:"flex",alignItems:"center",gap:6}}>= <Frac n="3x−3−2x−2" d="(x+1)(x−1)"/></span>,<span key="s3" style={{display:"flex",alignItems:"center",gap:6}}>= <Frac n="x−5" d="(x+1)(x−1)"/></span>]},
+        ]},
+      {title:"Multiplying — FACTORISE FIRST!",explanation:"⚠️ Factorise everything before multiplying. Then cancel common factors.",
+        examples:[
+          {problem:<span style={{display:"flex",alignItems:"center",gap:6}}><Frac n="x²+3x" d="4"/>×<Frac n="8" d="x+3"/></span>,problemText:"x squared plus 3x over 4, times 8 over x plus 3",
+            steps:["Step 1 — FACTORISE: x²+3x=x(x+3)",<span key="s1" style={{display:"flex",alignItems:"center",gap:6,paddingLeft:16}}>Rewrite: <Frac n="x(x+3)" d="4"/>×<Frac n="8" d="x+3"/></span>,"Step 2 — CANCEL: (x+3) ✓  8÷4=2 ✓","Step 3 — Answer: 2x","❌ Wrong: multiplying without factorising first!"]},
+          {problem:<span style={{display:"flex",alignItems:"center",gap:6}}><Frac n="x²−9" d="x²+2x"/>×<Frac n="x" d="x+3"/></span>,problemText:"x squared minus 9 over x squared plus 2x, times x over x plus 3",
+            steps:["Step 1 — FACTORISE: x²−9=(x+3)(x−3), x²+2x=x(x+2)",<span key="s1" style={{display:"flex",alignItems:"center",gap:6,paddingLeft:16}}>Rewrite: <Frac n="(x+3)(x−3)" d="x(x+2)"/>×<Frac n="x" d="x+3"/></span>,"Step 2 — CANCEL: (x+3)✓ x✓",<span key="s2" style={{display:"flex",alignItems:"center",gap:6}}>Answer: <Frac n="x−3" d="x+2"/></span>]},
+        ]},
+      {title:"Dividing — FACTORISE FIRST!",explanation:"⚠️ Factorise, flip the second fraction, then cancel.",
+        examples:[
+          {problem:<span style={{display:"flex",alignItems:"center",gap:6}}><Frac n="x²−4" d="6"/>÷<Frac n="x+2" d="3"/></span>,problemText:"x squared minus 4 over 6 divided by x plus 2 over 3",
+            steps:["Step 1 — FACTORISE: x²−4=(x+2)(x−2)",<span key="s1" style={{display:"flex",alignItems:"center",gap:6,paddingLeft:16}}>Rewrite: <Frac n="(x+2)(x−2)" d="6"/>÷<Frac n="x+2" d="3"/></span>,"Step 2 — Flip:",<span key="s2" style={{display:"flex",alignItems:"center",gap:6,paddingLeft:16}}><Frac n="(x+2)(x−2)" d="6"/>×<Frac n="3" d="x+2"/></span>,"Step 3 — CANCEL: (x+2)✓ 3/6=½✓",<span key="s3" style={{display:"flex",alignItems:"center",gap:6}}>Answer: <Frac n="x−2" d="2"/></span>]},
+        ]},
+    ],
+    questions:[
+      {q:<span style={{display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>Simplify: <Frac n="2" d="x"/>+<Frac n="3" d="x"/></span>,a:"5/x",hint:"Same denominator"},
+      {q:<span style={{display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>Simplify: <Frac n="1" d="2"/>+<Frac n="1" d="x"/></span>,a:"(x+2)/2x",hint:"LCD=2x"},
+      {q:<span style={{display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>Simplify: <Frac n="x²+2x" d="5"/>×<Frac n="10" d="x+2"/></span>,a:"2x",hint:"Factorise x²+2x=x(x+2) first"},
+      {q:<span style={{display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>Simplify: <Frac n="x²−16" d="3"/>÷<Frac n="x+4" d="6"/></span>,a:"2(x−4)",hint:"Factorise x²−16=(x+4)(x−4)"},
+      {q:<span style={{display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>Simplify: <Frac n="x²+x−6" d="x²−4"/>×<Frac n="x+2" d="x+3"/></span>,a:"1",hint:"x²+x−6=(x+3)(x−2), x²−4=(x+2)(x−2)"},
+    ]},
+};
+
+function LessonView({mod}){
+  const [al,setAl]=useState(0);
+  const content=mc[mod.id];
+  const lesson=content.lessons[al];
+  return <div>
+    <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+      {content.subtopics.map((s,i)=>(
+        <button key={i} onClick={()=>setAl(i)}
+          style={{padding:"6px 14px",borderRadius:20,border:"none",fontSize:13,background:al===i?"#6366f1":"#e0e7ff",color:al===i?"#fff":"#4338ca",fontWeight:600}}>{s}</button>
+      ))}
+    </div>
+    <h3 style={{color:"#1e3a5f",marginBottom:8}}>{lesson.title}</h3>
+    <div style={{background:"#fef9c3",border:"1px solid #fde047",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:14,color:"#78350f"}}>💡 {lesson.explanation}</div>
+    <h4 style={{color:"#374151",marginBottom:8}}>Worked Examples</h4>
+    {lesson.examples.map((ex,i)=>(
+      <div key={i} style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:10,padding:14,marginBottom:16}}>
+        <div style={{fontWeight:700,fontSize:16,color:"#1e3a5f",marginBottom:6,display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>{ex.problem}</div>
+        <div style={{fontSize:12,fontWeight:700,color:"#9ca3af",textTransform:"uppercase",letterSpacing:0.8,marginBottom:4,marginTop:8}}>Full Workings</div>
+        <StepBox steps={ex.steps}/>
+        <AnimatedWorkings steps={ex.steps} problem={ex.problem} problemText={ex.problemText} key={`${mod.id}-${al}-${i}`}/>
+      </div>
+    ))}
+  </div>;
+}
+
+function PracticeView({mod}){
+  const qs=mc[mod.id].questions;
+  const [ans,setAns]=useState({});
+  const [rev,setRev]=useState({});
+  const [hints,setHints]=useState({});
+  const [score,setScore]=useState(null);
+  const [chk,setChk]=useState({});
+  const norm=s=>s.replace(/\s/g,"").toLowerCase();
+  const check=i=>setChk(c=>({...c,[i]:norm(ans[i]||"")===norm(qs[i].a)}));
+  const calcScore=()=>{let s=0;qs.forEach((_,i)=>{if(norm(ans[i]||"")===norm(qs[i].a))s++;});setScore(s);};
+  return <div>
+    <h3 style={{color:"#1e3a5f",marginBottom:16}}>Practice Questions</h3>
+    {qs.map((q,i)=>(
+      <div key={i} style={{background:"#fff",border:`2px solid ${chk[i]===true?"#22c55e":chk[i]===false?"#ef4444":"#e5e7eb"}`,borderRadius:10,padding:14,marginBottom:14}}>
+        <div style={{fontWeight:600,marginBottom:8,color:"#1e3a5f",display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>Q{i+1}: {q.q}</div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+          <input placeholder="Your answer…" value={ans[i]||""}
+            onChange={e=>{setAns(a=>({...a,[i]:e.target.value}));setChk(c=>{const n={...c};delete n[i];return n;});}}
+            style={{flex:1,minWidth:180,padding:"7px 10px",borderRadius:8,border:"1px solid #d1d5db",fontSize:14}}
+            onKeyDown={e=>e.key==="Enter"&&check(i)}/>
+          <button onClick={()=>check(i)} style={{padding:"7px 14px",background:"#6366f1",color:"#fff",border:"none",borderRadius:8,fontWeight:600,fontSize:13}}>Check</button>
+          <button onClick={()=>setHints(h=>({...h,[i]:true}))} style={{padding:"7px 14px",background:"#fbbf24",color:"#fff",border:"none",borderRadius:8,fontSize:13}}>Hint</button>
+          <button onClick={()=>setRev(r=>({...r,[i]:true}))} style={{padding:"7px 14px",background:"#e5e7eb",color:"#374151",border:"none",borderRadius:8,fontSize:13}}>Show Answer</button>
+        </div>
+        {chk[i]===true&&<div style={{marginTop:8,color:"#16a34a",fontWeight:600}}>✅ Correct!</div>}
+        {chk[i]===false&&<div style={{marginTop:8,color:"#dc2626",fontWeight:600}}>❌ Not quite — try again!</div>}
+        {hints[i]&&<div style={{marginTop:8,background:"#fef3c7",borderRadius:6,padding:"6px 10px",fontSize:13,color:"#92400e"}}>💡 {q.hint}</div>}
+        {rev[i]&&<div style={{marginTop:8,background:"#dcfce7",borderRadius:6,padding:"6px 10px",fontSize:13,color:"#166534",fontWeight:600}}>Answer: {q.a}</div>}
+      </div>
+    ))}
+    <button onClick={calcScore} style={{padding:"10px 24px",background:"#6366f1",color:"#fff",border:"none",borderRadius:10,fontWeight:700,fontSize:15}}>📊 Get Score</button>
+    {score!==null&&<div style={{marginTop:14,background:"#ede9fe",borderRadius:10,padding:14,textAlign:"center"}}>
+      <div style={{fontSize:22,fontWeight:800,color:"#4f46e5"}}>{score}/{qs.length}</div>
+      <div style={{color:"#6d28d9",marginTop:4}}>{score===qs.length?"🏆 Perfect!":score>=qs.length/2?"👍 Good effort!":"📖 Review the lesson and try again!"}</div>
+    </div>}
+  </div>;
+}
+
+function App(){
+  const [activeMod,setActiveMod]=useState(1);
+  const [tab,setTab]=useState("lesson");
+  const [sidebarOpen,setSidebarOpen]=useState(true);
+  const mod=modules.find(m=>m.id===activeMod);
+  return <div style={{fontFamily:"'Segoe UI',sans-serif",minHeight:"100vh",background:"#f1f5f9",display:"flex",flexDirection:"column"}}>
+    <div style={{background:"linear-gradient(135deg,#6366f1 0%,#4f46e5 100%)",color:"#fff",padding:"14px 20px",display:"flex",alignItems:"center",gap:12}}>
+      <button onClick={()=>setSidebarOpen(o=>!o)} style={{background:"rgba(255,255,255,0.2)",border:"none",color:"#fff",borderRadius:8,padding:"6px 10px",fontSize:16}}>☰</button>
+      <div style={{width:48,height:48,borderRadius:12,background:"#fff",border:"2px solid rgba(255,255,255,0.5)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,overflow:"hidden"}}>
+        <svg width="44" height="44" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="50" cy="38" rx="26" ry="30" fill="#3b1f0a"/>
+          <rect x="24" y="45" width="12" height="38" rx="6" fill="#3b1f0a"/>
+          <rect x="64" y="45" width="12" height="38" rx="6" fill="#3b1f0a"/>
+          <ellipse cx="50" cy="42" rx="20" ry="22" fill="#f5d9b0"/>
+          <ellipse cx="43" cy="40" rx="2.5" ry="2.8" fill="#3b1f0a"/>
+          <ellipse cx="57" cy="40" rx="2.5" ry="2.8" fill="#3b1f0a"/>
+          <path d="M44 50 Q50 55 56 50" stroke="#c0775a" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+          <rect x="45" y="62" width="10" height="8" fill="#f5d9b0"/>
+          <ellipse cx="50" cy="82" rx="22" ry="16" fill="#f4a7b9"/>
+          <ellipse cx="50" cy="80" rx="12" ry="10" fill="#fde68a"/>
+          <path d="M28 72 Q38 78 50 76 Q62 78 72 72" stroke="#f4a7b9" strokeWidth="9" fill="none" strokeLinecap="round"/>
+        </svg>
+      </div>
+      <div>
+        <div style={{fontWeight:900,fontSize:20,letterSpacing:0.3}}>Algebra Mastery <span style={{fontSize:13,fontWeight:600,opacity:0.85}}>by JJMath</span></div>
+        <div style={{fontSize:12,opacity:0.85}}>Got it? All the best ♥ — Interactive Learning for Secondary Students</div>
+      </div>
+    </div>
+    <div style={{display:"flex",flex:1,overflow:"hidden"}}>
+      {sidebarOpen&&<div style={{width:220,background:"#fff",borderRight:"1px solid #e5e7eb",padding:"16px 0",flexShrink:0}}>
+        <div style={{padding:"0 16px 12px",fontSize:11,fontWeight:700,color:"#9ca3af",textTransform:"uppercase",letterSpacing:1}}>Modules</div>
+        {modules.map(m=>(
+          <div key={m.id} onClick={()=>{setActiveMod(m.id);setTab("lesson");}}
+            style={{padding:"10px 16px",cursor:"pointer",background:activeMod===m.id?"#ede9fe":"transparent",borderLeft:activeMod===m.id?"4px solid #6366f1":"4px solid transparent",color:activeMod===m.id?"#4f46e5":"#374151",fontWeight:activeMod===m.id?700:400,fontSize:14,display:"flex",alignItems:"center",gap:8}}>
+            <span>{m.icon}</span>{m.title}
+            {m.id===7&&<span style={{marginLeft:"auto",background:"#fbbf24",color:"#fff",fontSize:10,fontWeight:800,padding:"2px 6px",borderRadius:10}}>NEW</span>}
+          </div>
+        ))}
+      </div>}
+      <div style={{flex:1,overflow:"auto",padding:24}}>
+        <div style={{maxWidth:760,margin:"0 auto"}}>
+          <h2 style={{color:"#1e3a5f",marginBottom:4}}>{mod.icon} {mod.title}</h2>
+          {activeMod===7?<WordProblemsModule/>:<>
+            <div style={{display:"flex",gap:8,marginBottom:20}}>
+              {["lesson","practice"].map(t=>(
+                <button key={t} onClick={()=>setTab(t)}
+                  style={{padding:"8px 20px",borderRadius:8,border:"none",fontWeight:700,fontSize:14,background:tab===t?"#6366f1":"#e0e7ff",color:tab===t?"#fff":"#4338ca"}}>
+                  {t==="lesson"?"📖 Lesson":"✏️ Practice"}</button>
+              ))}
+            </div>
+            {tab==="lesson"?<LessonView mod={mod}/>:<PracticeView mod={mod} key={activeMod}/>}
+          </>}
+        </div>
+      </div>
+    </div>
+  </div>;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
